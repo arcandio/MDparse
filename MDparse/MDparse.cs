@@ -25,63 +25,65 @@ namespace MDparse
                     flags.Add(TagFlags.None);
                 }
                 int lastNewline = 0;
+                #region Mode Setting
                 // http://geekswithblogs.net/BlackRabbitCoder/archive/2010/07/22/c-fundamentals-combining-enum-values-with-bit-flags.aspx
                 // iterate through each letter, setting mode after checking for an event
                 for (int i = 0; i < letters.Count; i++)
                 {
                     // cache current
                     char c = letters[i];
+                    // cache last
+                    char? l = null;
+                    if(i > 0)
+                        l = letters[i - 1];
                     // get last mode
                     TagFlags lastMode = TagFlags.None;
+                    TagFlags thisMode = TagFlags.None;
                     if (i > 0)
-                        lastMode = flags[i];
+                        lastMode = flags[i - 1];
                     // check our mode against our current char
-                    switch (lastMode)
+                    if (lastMode == TagFlags.None)
                     {
-                        // this is the mode that we were in when we started this letter.
-                        case TagFlags.CodeBlock:
+                        // NO LAST FLAG
+                        //thisMode = TagFlags.None;
+                        if (c == '\n' || c == '\r')
+                            thisMode = TagFlags.None;
+                        else if (c == '#' || c == '=')
+                            thisMode = TagFlags.Header;
+                        else if (c == '>' || c == ' ' || c == '\t')
+                            thisMode = TagFlags.Block;
+                        else if (c == '-')
+                            thisMode = TagFlags.Separator;
+                        else if (c == '`')
+                            thisMode = TagFlags.CodeBlock;
+                        else if (c == '<')
+                            thisMode = TagFlags.Comment;
+                        else
+                            thisMode = TagFlags.Paragraph;
 
-                            break;
-                        case TagFlags.Comment:
-
-                            break;
-                        case TagFlags.Em:
-
-                            break;
-                        case TagFlags.Header:
-
-                            break;
-                        case TagFlags.HtmlTag:
-
-                            break;
-                        case TagFlags.Link:
-
-                            break;
-                        case TagFlags.List:
-
-                            break;
-                        case TagFlags.ListItem:
-
-                            break;
-                        case TagFlags.Mono:
-
-                            break;
-                        case TagFlags.Paragraph:
-
-                            break;
-                        case TagFlags.Strike:
-
-                            break;
-                        case TagFlags.Strong:
-
-                            break;
-                        default:
-                            xamlOutput += c;
-                            break;
+                        
                     }
-                    flags[i] = TagFlags.None;
+                    else
+                    {
+                        thisMode = TagFlags.Paragraph;
+                        if (c == '\n' || c == '\r')
+                            thisMode = TagFlags.None;
+                    }
+
+                    //xamlOutput += c;
+                    flags[i] = thisMode;
                     // set our mode and move on
+                    string r = c.ToString();
+                    if (r == "\n" || r == "\r")
+                        r = "\tnewline";
+                    if (r == " ")
+                        r = "\tspace";
+                    System.Diagnostics.Debug.WriteLine(r + "-" + thisMode.ToString() + "\t\t last mode was: "+lastMode.ToString());
                 }
+                #endregion
+                #region Syntax Insertion
+
+                #endregion
             }
             return xamlOutput;
         }
@@ -160,18 +162,20 @@ namespace MDparse
         public enum TagFlags
         {
             None = 0,
-            CodeBlock = 1,
-            Comment = 2,
-            Em = 4,
-            Header = 8,
-            HtmlTag = 16,
-            Link = 32,
-            List = 64,
-            ListItem = 128,
-            Mono = 256,
-            Paragraph = 512,
-            Strike = 1024,
-            Strong = 2048
+            Emphasis = 1 << 1,
+            Header = 1 << 2,
+            HtmlTag = 1 << 3,
+            Link = 1 << 4,
+            ListItem = 1 << 5,
+            Mono = 1 << 6,
+            Paragraph = 1 << 7,
+            Separator = 1 << 8,
+            Strike = 1 << 9,
+            Strong = 1 << 10,
+            Block = 1 << 11,
+            CodeBlock = 1 << 12,
+            Comment = 1 << 13,
+            List = 1 << 14
         }
     }
     public class MDparseTags
