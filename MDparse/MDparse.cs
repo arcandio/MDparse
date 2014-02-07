@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +11,8 @@ namespace MDparse
     {
         public static string GetXamlFromMD(string mdInput)
         {
+            // set up timer
+            Stopwatch sw = Stopwatch.StartNew();
             // set up variables
             List<char> letters;
             List<TagFlags> flags;
@@ -20,22 +23,39 @@ namespace MDparse
                 // rip input into chars
                 letters = mdInput.ToCharArray().ToList<char>();
                 flags = new List<TagFlags>();
-                foreach (char c in letters)
+                for (int i = 0; i < letters.Count; i++ )
                 {
                     flags.Add(TagFlags.None);
                 }
-                int lastNewline = 0;
+                //int lastNewline = 0;
                 #region Mode Setting
                 // http://geekswithblogs.net/BlackRabbitCoder/archive/2010/07/22/c-fundamentals-combining-enum-values-with-bit-flags.aspx
                 // iterate through each letter, setting mode after checking for an event
-                for (int i = 0; i < letters.Count; i++)
+                int count = letters.Count;
+                for (int i = 0; i < count; i++)
                 {
-                    // cache current
+                    // cache around me
+                    char lll = '\0';
+                    char ll = '\0';
+                    char l = '\0';
                     char c = letters[i];
-                    // cache last
-                    char? l = null;
+                    char n = '\0';
+                    char nn = '\0';
+                    char nnn = '\0';
+
                     if(i > 0)
                         l = letters[i - 1];
+                    if(i > 1)
+                        ll = letters[i - 2];
+                    if (i > 2)
+                        lll = letters[i - 3];
+                    if (i + 1 < count)
+                        n = letters[i + 1];
+                    if (i + 2 < count)
+                        nn = letters[i + 2];
+                    if (i + 3 < count)
+                        nnn = letters[i + 3];
+
                     // get last mode
                     TagFlags lastMode = TagFlags.None;
                     TagFlags thisMode = TagFlags.None;
@@ -44,8 +64,7 @@ namespace MDparse
                     // check our mode against our current char
                     if (lastMode == TagFlags.None)
                     {
-                        // NO LAST FLAG
-                        //thisMode = TagFlags.None;
+                        // NO LAST FLAG, ie after newline, some type of block level item
                         if (c == '\n' || c == '\r')
                             thisMode = TagFlags.None;
                         else if (c == '#' || c == '=')
@@ -59,32 +78,73 @@ namespace MDparse
                         else if (c == '<')
                             thisMode = TagFlags.Comment;
                         else
+                        {
                             thisMode = TagFlags.Paragraph;
+                            //check for paragraph starting highlighting
 
+                        }
                         
+                    }
+                    /*else if (lastMode.HasFlag(TagFlags.Block))
+                    {
+
+                    }*/
+                    else if (lastMode.HasFlag(TagFlags.CodeBlock))
+                    {
+                        if (l == '`' && c != '`')
+                        if (l == '`' && (c == '\n' || c == '\r'))
+                            thisMode = TagFlags.None;
+                        else
+                            thisMode = TagFlags.CodeBlock;
+                    }
+                    else if (lastMode.HasFlag(TagFlags.Comment))
+                    {
+                        if (l == '>' && (c == '\n' || c == '\r'))
+                            thisMode = TagFlags.None;
+                        else
+                            thisMode = TagFlags.Comment;
                     }
                     else
                     {
                         thisMode = TagFlags.Paragraph;
+                        // On newline, clear tags that can't cross lines
                         if (c == '\n' || c == '\r')
-                            thisMode = TagFlags.None;
+                            thisMode &= ~TagFlags.Emphasis
+                                & ~TagFlags.Header
+                                & ~TagFlags.HtmlTag
+                                & ~TagFlags.Link
+                                & ~TagFlags.ListItem
+                                & ~TagFlags.Mono
+                                & ~TagFlags.Paragraph
+                                & ~TagFlags.Separator
+                                & ~TagFlags.Strike
+                                & ~TagFlags.Strong;
+                        // Phew. We've cleared NON MULTILINE flags.
+                        // now do word-level highlighting tags
+
                     }
+
 
                     //xamlOutput += c;
                     flags[i] = thisMode;
                     // set our mode and move on
+                    
                     string r = c.ToString();
                     if (r == "\n" || r == "\r")
                         r = "\tnewline";
                     if (r == " ")
                         r = "\tspace";
                     System.Diagnostics.Debug.WriteLine(r + "-" + thisMode.ToString() + "\t\t last mode was: "+lastMode.ToString());
+                    
                 }
                 #endregion
                 #region Syntax Insertion
 
                 #endregion
             }
+
+            sw.Stop();
+            System.Diagnostics.Debug.WriteLine("Time Taken: "+sw.Elapsed);
             return xamlOutput;
         }
 
@@ -175,7 +235,6 @@ namespace MDparse
             Block = 1 << 11,
             CodeBlock = 1 << 12,
             Comment = 1 << 13,
-            List = 1 << 14
         }
     }
     public class MDparseTags
